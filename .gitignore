@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+*.parquet
+hw2/data/
+hw2/results/
