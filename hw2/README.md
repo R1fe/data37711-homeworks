@@ -1,8 +1,8 @@
-# DATA 37711 coursework
+# Homework 2
 
-## Homework 2 - Problem 1(c,e)
+## Problem 1(c,e)
 
-`hw2/p1.py` reproduces the taxi-duration experiment: two Gaussian MLP candidates, validation-based model selection, constant/linear Gaussian baselines, and the training-prevalence probability baseline. It evaluates duration RMSE, Gaussian NLL, 90% prediction-interval coverage, Brier score, binary log-loss, and accuracy at threshold 0.5.
+[`p1.py`](p1.py) reproduces the taxi-duration experiment: two Gaussian MLP candidates, validation-based model selection, constant/linear Gaussian baselines, and the training-prevalence probability baseline. It evaluates duration RMSE, Gaussian NLL, 90% prediction-interval coverage, Brier score, binary log-loss, and accuracy at threshold 0.5.
 
 ### Run
 
