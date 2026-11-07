@@ -60,3 +60,49 @@ All three networks have a 64/32 ReLU head and minimize squared error on the stan
 | Combined | 27 | 0.51762 | 0.52123 | 5.798 | 30.111 |
 
 The combined model has the lowest test RMSLE and MAE; embeddings alone have the lowest raw-scale RMSE. The learning curves plot log-target error by epoch (solid: validation; dashed: training). Platform-dependent floating-point variation is possible, as for Problem 1.
+
+## Problem 3 - Random features and learned features
+
+[`p3.py`](p3.py) reproduces the expanded report: separate one-factor sweeps of all six suggested hyperparameters, validation-based selection, refitting, fitted surfaces, and predictions for the unlabeled test set. Use the same Python 3.11 CPU environment and root `requirements.txt` as above. From the repository root:
+
+```bash
+python hw2/p3.py --data-dir /path/to/course/data
+```
+
+The data directory must contain the corrected course `train.csv`, `val.csv`, and `test.csv`. The script verifies the SHA-256 checksums recorded in the code and preserves the supplied 600/200/200 splits. Course data are not redistributed here. Outputs default to `hw2/results/p3/`; override with `--output PATH`.
+
+### Independent sweeps
+
+Each sweep changes only its named parameter around a fixed reference configuration. RKS uses `(h, sigma, lambda) = (256, 1, 0.1)`; MLP uses `(hidden width, learning rate, batch size) = (64, 0.003, 256)`.
+
+| Model | Scanned parameter | Values |
+|---|---|---|
+| RKS | Feature pairs h (D = 2h) | 32, 64, 128, 256, 512, 1024 |
+| RKS | Kernel scale sigma | 0.2, 0.4, 0.7, 1, 1.5, 2, 3, 5, 10 |
+| RKS | Ridge penalty lambda | 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100 |
+| MLP | Hidden width | 16, 32, 64, 128, 256 |
+| MLP | Learning rate | 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03 |
+| MLP | Batch size | 32, 64, 128, 256, 600 |
+
+Seed 42 and four CPU threads are used throughout. RKS fits unnormalized sine/cosine features with a sum-squared-error ridge objective and an unpenalized intercept. Random draws are shared across scale and penalty sweeps; feature-count comparisons use nested subsets of one feature bank.
+
+The MLP has exactly one Tanh hidden layer. Inputs are divided by 3; targets use training-only standardization. Adam uses weight decay 0.00001, gradient clipping at 10, maximum 1500 epochs, and validation patience 100. The best validation checkpoint is restored. Reported MSE is on the original target scale. Batch-size comparisons use the same epoch limit, so their optimizer-update counts differ.
+
+Shared reference configurations are reused across sweeps: 23 RKS and 16 MLP sweep entries correspond to 21 and 14 distinct fits. The best complete configuration actually evaluated for each model is then refitted, keeping validation separate. This is not a joint grid search; independent sweep winners are not combined without evaluation.
+
+| Sweep | Best value | Training MSE | Validation MSE |
+|---|---:|---:|---:|
+| RKS h | 64 | 0.031215 | 0.037196 |
+| RKS sigma | 3 | 0.032666 | 0.036309 |
+| RKS lambda | 10 | 0.031101 | 0.038224 |
+| MLP width | 32 | 0.034449 | 0.035932 |
+| MLP learning rate | 0.01 | 0.034267 | 0.035843 |
+| MLP batch size | 64 | 0.033819 | 0.035609 |
+
+The final RKS configuration is `h=256, sigma=3, lambda=0.1` (validation MSE 0.036308719). The final MLP configuration is `width=64, learning_rate=0.003, batch_size=64`, selected at epoch 882 (validation MSE 0.035609375).
+
+### Generated files
+
+The script writes complete sweep tables (`rks_sweeps.csv`, `mlp_sweeps.csv`), selection/refit metrics (`metrics.json`), twelve individual training/validation plots, combined sweep figures (`rks_sweeps.png`, `mlp_sweeps.png`), training-data and fitted-surface plots, and per-epoch MLP histories. It also writes `rks_test_predictions.csv` and `mlp_test_predictions.csv`, each with exactly 200 finite predictions, no header or index, in the original test row order.
+
+The test set has no labels, so no test MSE is reported. Validation is used for model selection and is not an independent final test. Small platform-dependent floating-point differences are possible. No notebook state or saved model weights are required.
