@@ -1,0 +1,145 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{amsmath,amssymb,booktabs}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\newcommand{\subpart}[1]{\textbf{(#1)}\enspace}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Rhat}{\widehat R}
+\pagestyle{plain}
+
+\begin{document}
+{\small DATA 37711 \hfill Fall 2026}
+\begin{center}
+  {\LARGE\bfseries Homework 3}\\[2pt]
+  {\large Machine Learning \& AI, Part I}
+\end{center}
+
+\section*{1.\quad Poisson boosting}
+\subpart{a.i} The Poisson distribution has support $\{0,1,2,\ldots\}$, so it
+can model a count. It is especially plausible when the conditional variance
+is close to the conditional mean.
+
+\subpart{a.ii} The tree score $f(x)$ can be any real number. The exponential
+maps it to a positive Poisson mean $\mu(x)=e^{f(x)}$. Equivalently,
+$\log\mu(x)=f(x)$, so $\exp$ is the inverse of the log link.
+
+\subpart{b--c} For one observation $(x,y)$, the negative log-likelihood and
+its derivative are
+\[
+ L(y,f(x))=e^{f(x)}-yf(x)+\log(y!),
+ \qquad \frac{\partial L}{\partial f(x)}=e^{f(x)}-y .
+\]
+The term $\log(y!)$ can be dropped when fitting the model.
+
+\subpart{d} At round $j$, compute each observation's negative gradient,
+$r_i=y_i-e^{f_{j-1}(x_i)}$. Fit a regression tree $h_j$ to $(x_i,r_i)$ by
+least squares. Update $f_j=f_{j-1}+\lambda_j h_j$, choosing the step
+$\lambda_j$ by a line search on the training Poisson loss.
+
+\section*{2.\quad Selecting hyperparameters}
+\subpart{a} Let $k$ be the number of candidate \emph{configurations}.
+Condition on the training data and fitting randomness, so the fitted models
+$h_1,\ldots,h_k$ are fixed independently of the $\ell$ i.i.d.\ test examples.
+Assume the loss lies in $[0,B]$. Write $R_j$ for the population risk,
+$\Rhat_j$ for the average test loss and
+$\hat\jmath=\arg\min_j\Rhat_j$. By Hoeffding's inequality for each $j$ and
+the union bound,
+\[
+ \Pr\!\left(\max_{1\le j\le k}|\Rhat_j-R_j|>\varepsilon\right)
+ \le \sum_{j=1}^k 2e^{-2\ell\varepsilon^2/B^2}
+ = 2k e^{-2\ell\varepsilon^2/B^2}.
+\]
+Setting the right side to $\delta$ gives, with probability at least $1-\delta$,
+\[
+ \boxed{\bigl|\Rhat_{\hat\jmath}-R_{\hat\jmath}\bigr|
+ \le B\sqrt{\frac{\log(2k/\delta)}{2\ell}}.}
+\]
+The bound also holds after averaging over training samples, so $n$ need
+not appear. For squared loss, $B=81$ suffices if both the target and the
+prediction lie in $[1,10]$.
+
+\subpart{b} Suppose every candidate has a true error rate of $20\%$. Their
+error rates on a small test set can still differ by chance. If the lowest is
+$17\%$, we select that candidate and report $17\%$, even though its true
+error is still $20\%$. With $\ell$ fixed, trying more configurations gives
+more opportunities for a candidate to look unusually good by chance.
+The reported minimum therefore underestimates the selected model's error on
+average, since $\E[\min_j\Rhat_j]\le\min_j R_j\le\E[R_{\hat\jmath}]$
+conditional on training.
+Using a validation set for selection leaves the final test set independent
+of that choice.
+
+\newpage
+\section*{2(c).\quad White wine quality}
+The \href{https://archive.ics.uci.edu/dataset/186/wine+quality}{UCI white wine
+data} contain 4,898 wines and 11 predictors. A random split (scikit-learn
+1.3.0, seed 42) gave
+3,428 training, 490 validation and 980 test observations. For each model
+class, we minimized validation MSE over $512>490$ configurations and
+evaluated the selected training-set fit once on the test set.
+
+\textbf{Random forest.}
+The \href{https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html}{forest}
+grid used $8,16,\ldots,128$ trees. Maximum depth was 6, 10, 16 or unlimited.
+Minimum leaf size was 1 or 4, and each split considered 3, 5, 8 or 11 features
+($16\cdot4\cdot2\cdot4=512$).
+
+\textbf{Nearest neighbors.}
+After standardizing each feature using training statistics, the
+\href{https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsRegressor.html}{nearest-neighbor regressor}
+used $1,\ldots,128$ neighbors, Manhattan or Euclidean distance, and uniform
+or inverse-distance weights ($128\cdot2\cdot2=512$).
+
+\begin{center}
+\begin{tabular}{llrr}
+\toprule
+Model & Selected configuration & Validation MSE & Test MSE\\
+\midrule
+Forest & 120 trees, unlimited depth, leaf size 1, 3 features & 0.29898 & 0.34925\\
+Neighbors & 25 neighbors, Manhattan, inverse-distance weights & 0.29874 & 0.36855\\
+\bottomrule
+\end{tabular}
+\end{center}
+Both selected models have higher test MSE. The validation set favors nearest
+neighbors by only $0.00024$, while the forest has lower test MSE by $0.01930$.
+Validation-based selection can favor a lucky score, and sampling variation
+can reverse a close ranking.
+
+\section*{3.\quad How the number of trees affects generalization}
+Each file contains 500 observations. We predicted the binary first column from the other five.
+We used five-fold stratified cross-validation (shuffled, seed 42) and a
+gradient boosting classifier with depth 3, learning rate $0.1$ and logistic
+loss. Each observation received one held-out prediction at every tree count.
+
+\begin{center}
+\begin{tabular}{r@{\hspace{1.3em}}rrr@{\hspace{1.5em}}rrr}
+\toprule
+& \multicolumn{3}{c}{\texttt{dset0}} & \multicolumn{3}{c}{\texttt{dset1}}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+Trees & Train err. & CV err. & CV log loss & Train err. & CV err. & CV log loss\\
+\midrule
+1     & 42.60\% & 42.6\% & 0.662 & 29.05\% & 32.0\% & 0.648\\
+10    & 15.90\% & 26.0\% & 0.571 & 12.75\% & 20.4\% & 0.478\\
+100   &  0.80\% & 17.2\% & 0.401 &  1.35\% & 19.8\% & 0.409\\
+300   &  0.00\% & 16.0\% & 0.440 &  0.00\% & 20.0\% & 0.513\\
+1,000 &  0.00\% & 16.8\% & 0.781 &  0.00\% & 20.8\% & 0.957\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subpart{a} On \texttt{dset0}, held-out classification error falls from
+42.6\% to 16.0\% at 300 trees, then rises to 16.8\%. Log loss reaches its
+minimum earlier, at 100 trees.
+
+\subpart{b} On \texttt{dset1}, ten trees already reach 20.4\% held-out
+error. The lowest observed value is 19.8\% at 100 trees. By 1,000 trees
+training error is zero, yet held-out log loss has more than doubled from
+its 100-tree value, consistent with more confident mistakes.
+
+\subpart{c} On the same folds, logistic regression with standardized predictors has 35.8\% error on
+\texttt{dset0} and 17.4\% on \texttt{dset1}. This suggests that a linear
+boundary captures much of the signal in \texttt{dset1}, whereas
+\texttt{dset0} benefits more from the nonlinear structure that trees can fit.
+\end{document}

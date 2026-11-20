@@ -1,0 +1,3 @@
+model,n_estimators,max_depth,min_samples_leaf,max_features,n_neighbors,p,weights,validation_mse,test_mse
+RF,120,None,1,3,,,,0.2989797335600907,0.3492538265306122
+KNN,,,,,25,1,distance,0.2987389892437149,0.3685502332747346
